@@ -1,0 +1,8 @@
+services:
+  mariadb:
+    image: mariadb:10.11.4
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-pass}

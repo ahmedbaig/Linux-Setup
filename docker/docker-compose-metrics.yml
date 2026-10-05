@@ -1,0 +1,55 @@
+
+name: docker-metrics-stack
+
+services:
+  dozzle-metrics:
+    image: amir20/dozzle:latest
+    container_name: dozzle-metrics
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - 8080:8080
+    environment:
+      - DOZZLE_TAILSIZE=all
+    networks:
+      - stack_net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  prometheus-metrics:
+    image: prom/prometheus
+    container_name: prometheus-metrics
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - 9190:9090
+    restart: unless-stopped
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prom_data:/prometheus
+    networks:
+      - stack_net
+
+  grafana-metrics:
+    image: grafana/grafana:10.3.3
+    container_name: grafana-metrics
+    ports:
+      - 3123:3000
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-grafana}
+    volumes:
+      - ./grafana:/etc/grafana/provisioning/datasources
+    networks:
+      - stack_net
+
+volumes:
+  prom_data:
+  es_data:
+
+networks:
+  stack_net:
+    driver: bridge

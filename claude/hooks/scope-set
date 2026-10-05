@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Update this session's scope balance shown in the status line panel.
+
+usage: scope-set [--goal TEXT] [--drift 0-5] [--halluc 0-5] [--note TEXT] [--repos a,b]
+
+Session comes from $CLAUDE_CODE_SESSION_ID (set in Claude Code's Bash tool).
+Fields not passed are kept. --note "" clears the note.
+"""
+import argparse
+import json
+import os
+import sys
+import time
+
+SCOPE_DIR = os.path.join(
+    os.environ.get("CLAUDE_CONFIG_DIR", os.path.expanduser("~/.claude")), "statusline-stats", "scope"
+)
+
+
+def level(v):
+    n = int(v)
+    if not 0 <= n <= 5:
+        raise argparse.ArgumentTypeError("must be 0-5")
+    return n
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--goal")
+ap.add_argument("--drift", type=level)
+ap.add_argument("--halluc", type=level)
+ap.add_argument("--note")
+ap.add_argument("--repos", help="comma-separated in-scope repo names")
+ap.add_argument("--source", help='where the goal came from: "chat #N" or a doc path')
+ap.add_argument("--refs", help="comma-separated reference doc paths")
+ap.add_argument("--session", default=os.environ.get("CLAUDE_CODE_SESSION_ID"))
+args = ap.parse_args()
+if not args.session:
+    sys.exit("scope-set: no session id ($CLAUDE_CODE_SESSION_ID unset)")
+
+os.makedirs(SCOPE_DIR, exist_ok=True)
+path = os.path.join(SCOPE_DIR, f"{args.session}.json")
+try:
+    with open(path) as f:
+        scope = json.load(f)
+except Exception:
+    scope = {"drift": 0, "halluc": 0}
+
+for key in ("goal", "drift", "halluc", "note", "source"):
+    val = getattr(args, key)
+    if val is not None:
+        scope[key] = val
+for key in ("repos", "refs"):
+    val = getattr(args, key)
+    if val is not None:
+        scope[key] = [r.strip() for r in val.split(",") if r.strip()]
+scope["t"] = time.time()
+
+tmp = path + ".tmp"
+with open(tmp, "w") as f:
+    json.dump(scope, f)
+os.replace(tmp, path)
+print(f"scope: drift={scope.get('drift', 0)} halluc={scope.get('halluc', 0)} goal={scope.get('goal', '')!r}")

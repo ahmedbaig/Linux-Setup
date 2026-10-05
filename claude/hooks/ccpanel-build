@@ -1,0 +1,19 @@
+#!/bin/sh
+# Build + register ~/Applications/CCPanelToggle.app, the ccpanel:// URL handler.
+set -e
+APP="$HOME/Applications/CCPanelToggle.app"
+PB=/usr/libexec/PlistBuddy
+mkdir -p "$HOME/Applications"
+rm -rf "$APP"
+osacompile -o "$APP" "$HOME/.claude/hooks/ccpanel-handler.applescript"
+P="$APP/Contents/Info.plist"
+$PB -c "Set :CFBundleIdentifier com.ahmedbaig.ccpanel" "$P" 2>/dev/null || $PB -c "Add :CFBundleIdentifier string com.ahmedbaig.ccpanel" "$P"
+$PB -c "Add :LSUIElement bool true" "$P"
+$PB -c "Add :CFBundleURLTypes array" "$P"
+$PB -c "Add :CFBundleURLTypes:0 dict" "$P"
+$PB -c "Add :CFBundleURLTypes:0:CFBundleURLName string Claude status panel" "$P"
+$PB -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$P"
+$PB -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string ccpanel" "$P"
+codesign --force --sign - "$APP" >/dev/null 2>&1
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP"
+echo "registered $APP"

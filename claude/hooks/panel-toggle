@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Show/hide the status line panels.
+
+usage:
+  panel-toggle                   flip expanded <-> collapsed
+  panel-toggle show|hide         force expanded / collapsed
+  panel-toggle section NAME      flip one section (stats, work, scope, ...)
+  panel-toggle ccpanel://...     same, from a clicked status line link:
+                                 ccpanel://toggle, ccpanel://show, ccpanel://hide,
+                                 ccpanel://section/NAME
+
+State: ~/.claude/statusline-stats/view.json  {"expanded": bool, "hidden": [names]}
+"""
+import json
+import os
+import sys
+import time
+from urllib.parse import urlparse
+
+VIEW = os.path.join(
+    os.environ.get("CLAUDE_CONFIG_DIR", os.path.expanduser("~/.claude")), "statusline-stats", "view.json"
+)
+
+args = sys.argv[1:]
+if args and args[0].startswith("ccpanel:"):
+    u = urlparse(args[0])
+    args = [u.netloc] + [p for p in u.path.split("/") if p]
+
+try:
+    with open(VIEW) as f:
+        view = json.load(f)
+except Exception:
+    view = {"expanded": True, "hidden": []}
+
+cmd = args[0] if args else "toggle"
+if cmd == "toggle":
+    view["expanded"] = not view.get("expanded", True)
+elif cmd in ("show", "hide"):
+    view["expanded"] = cmd == "show"
+elif cmd == "section" and len(args) > 1:
+    hidden = set(view.get("hidden") or [])
+    hidden ^= {args[1]}
+    view["hidden"] = sorted(hidden)
+    view["expanded"] = True
+else:
+    sys.exit(__doc__)
+view["t"] = time.time()
+
+os.makedirs(os.path.dirname(VIEW), exist_ok=True)
+tmp = VIEW + ".tmp"
+with open(tmp, "w") as f:
+    json.dump(view, f)
+os.replace(tmp, VIEW)
+
+# drop cached renders so statusline.sh re-renders on its next 1s tick
+cache = os.path.join(os.path.dirname(VIEW), "cache")
+for name in os.listdir(cache) if os.path.isdir(cache) else []:
+    if name.endswith(".out"):
+        try:
+            os.remove(os.path.join(cache, name))
+        except OSError:
+            pass
+print(f"panels {'expanded' if view['expanded'] else 'collapsed'}; hidden: {', '.join(view.get('hidden') or []) or 'none'}")
