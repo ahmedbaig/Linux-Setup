@@ -14,7 +14,7 @@ export ZSH=$HOME/.oh-my-zsh
 # Optionally, if you set this to "random", it'll load a random theme each
 # time that oh-my-zsh is loaded.
 #export ZSH_THEME="robbyrussell"
-export ZSH_THEME="emotty"
+export ZSH_THEME=""
 
 # Set to this to use case-sensitive completion
 # export CASE_SENSITIVE="true"
@@ -28,12 +28,13 @@ export ZSH_THEME="emotty"
 # Uncomment following line if you want to disable autosetting terminal title.
 # export DISABLE_AUTO_TITLE="true"
 
-zstyle ':omz:update' mode auto      # update automatically without asking
+ZSH_DISABLE_COMPFIX=true
+zstyle ':omz:update' mode disabled
 COMPLETION_WAITING_DOTiS="true"
 
 # Which plugins would you like to load? (plugins can be found in ~/.oh-my-zsh/plugins/*)
 # Example format: plugins=(rails git textmate ruby lighthouse)
-plugins=(git textmate ruby node zsh-syntax-highlighting emoji emotty)
+plugins=(git ruby node)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -81,7 +82,14 @@ alias v="fd --type f --exclude .git | fzf-tmux -p | xargs nvim"
 alias vim="nvim"
 alias vi="nvim"
 alias oldvim="vim"
-eval "$(jump shell --bind=z)"
+if (( $+commands[jump] )); then
+  _jump_init=~/.cache/jump-init.zsh
+  if [[ ! -s $_jump_init || $commands[jump] -nt $_jump_init ]]; then
+    mkdir -p ~/.cache && jump shell --bind=z > $_jump_init
+  fi
+  source $_jump_init
+  unset _jump_init
+fi
 
 # -------------------------------------------------------------------
 # make some commands (potentially) less destructive
@@ -183,19 +191,32 @@ resetDisplay() { "${DOTFILES:-$HOME/.dotfiles}/scripts/macos/reset-displays.sh" 
 # finis
 # mhn 2011.7.19
 
-source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+ZSH_AUTOSUGGEST_MANUAL_REBIND=1
+ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
+source ${HOMEBREW_PREFIX:-$(brew --prefix)}/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 
-[[ -s "$HOME/.gvm/scripts/gvm" ]] && source "$HOME/.gvm/scripts/gvm"
+if [[ -s "$HOME/.gvm/scripts/gvm" ]]; then
+  export PATH="$HOME/.gvm/bin:$PATH"
+  gvm() { unfunction gvm; source "$HOME/.gvm/scripts/gvm"; gvm "$@"; }
+fi
 source ~/powerlevel10k/powerlevel10k.zsh-theme
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-typeset -g POWERLEVEL9K_INSTANT_PROMPT=off
-
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+  _nvm_default=${$(<"$NVM_DIR/alias/default" 2>/dev/null)#v}
+  _nvm_bin=("$NVM_DIR"/versions/node/v${_nvm_default}*/bin(N/On[1]))
+  (( $#_nvm_bin )) && export PATH="$_nvm_bin[1]:$PATH" NVM_BIN="$_nvm_bin[1]"
+  unset _nvm_default _nvm_bin
+  nvm() {
+    unfunction nvm
+    \. "$NVM_DIR/nvm.sh"
+    [[ -s "$NVM_DIR/bash_completion" ]] && \. "$NVM_DIR/bash_completion"
+    nvm "$@"
+  }
+fi
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
@@ -211,3 +232,6 @@ esac
 
 PATH=~/.console-ninja/.bin:$PATH
 PATH=/opt/homebrew/opt/mysql-client@8.0/bin:$PATH
+
+typeset -U path
+source ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh

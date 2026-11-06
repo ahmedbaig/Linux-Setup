@@ -31,10 +31,12 @@ export ZSH_THEME=""
 
 #zstyle ':omz:update' mode auto      # update automatically without asking
 COMPLETION_WAITING_DOTiS="true"
+ZSH_DISABLE_COMPFIX=true
+zstyle ':omz:update' mode disabled
 
 # Which plugins would you like to load? (plugins can be found in ~/.oh-my-zsh/plugins/*)
 # Example format: plugins=(rails git textmate ruby lighthouse)
-plugins=(git textmate ruby node zsh-syntax-highlighting emoji)
+plugins=(git ruby node)
 
 # Docker CLI completions; must be on fpath before oh-my-zsh runs compinit
 fpath=($HOME/.docker/completions $fpath)
@@ -196,6 +198,8 @@ resetDisplay() { "${DOTFILES:-$HOME/.dotfiles}/scripts/macos/reset-displays.sh" 
 # finis
 # mhn 2011.7.19
 
+ZSH_AUTOSUGGEST_MANUAL_REBIND=1
+ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
 source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 # gvm, lazy: sourcing it costs ~300ms and wraps `cd`. No gvm Go is set as
@@ -208,8 +212,6 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-
-typeset -g POWERLEVEL9K_INSTANT_PROMPT=off
 
 # nvm, lazy: put the default node on PATH now (no fork), load nvm itself on
 # first `nvm` call. Loading it eagerly cost ~400ms per shell.
@@ -254,4 +256,9 @@ export PATH="$HOME/.local/bin:$PATH"
 
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="$HOME/.sdkman"
-[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+if [[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]]; then
+  sdk() { unfunction sdk; source "$SDKMAN_DIR/bin/sdkman-init.sh"; sdk "$@"; }
+fi
+
+typeset -U path
+source ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
